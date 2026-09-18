@@ -1,8 +1,5 @@
 import streamlit as st
-import os
-from pathlib import Path
 from utils.auth import authenticate, init_session
-from utils.sheets import read_sheet
 
 st.set_page_config(
     page_title="نظام المخازن",
@@ -12,9 +9,6 @@ st.set_page_config(
 )
 
 init_session()
-
-# المسار الأساسي للمشروع
-BASE_DIR = Path(__file__).resolve().parent
 
 st.markdown("""
 <style>
@@ -34,12 +28,11 @@ st.markdown("""
         padding: 10px 20px;
         font-weight: bold;
     }
-    .stButton > button:hover { background-color: #1e5c4a; }
 </style>
 """, unsafe_allow_html=True)
 
-# ============ شاشة تسجيل الدخول ============
-if st.session_state["user"] is None:
+# ============ تسجيل الدخول ============
+if st.session_state.get("user") is None:
     st.markdown("""
     <div class="main-header">
         <h1>📦 نظام إدارة المخازن المتكامل</h1>
@@ -58,17 +51,16 @@ if st.session_state["user"] is None:
                 user = authenticate(email, password)
                 if user:
                     st.session_state["user"] = user
-                    st.success(f"✅ مرحباً {user['name']}")
                     st.rerun()
                 else:
                     st.error("❌ بيانات الدخول غير صحيحة")
-        
-        st.info("💡 **لأول استخدام**: استخدم بيانات المدير التي أنشأتها في ملف المستخدمين.")
+        st.info("💡 استخدم بيانات المدير المسجلة في ملف المستخدمين.")
     st.stop()
 
+# ============ بيانات المستخدم ============
 user = st.session_state["user"]
 
-# ============ القائمة الجانبية ============
+# معلومات المستخدم في الشريط الجانبي
 with st.sidebar:
     st.markdown(f"""
     <div style="text-align:center; padding:15px; background:#f0f4f8; border-radius:10px;">
@@ -76,55 +68,24 @@ with st.sidebar:
         <p style="color:#2b7a62;">{user['role']}</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("### 📋 القائمة الرئيسية")
-    
-    # الصفحات
-    pages_list = [
-        ("pages/1_Dashboard.py", "📊 لوحة التحكم"),
-        ("pages/2_Items.py", "📦 الأصناف"),
-        ("pages/3_Incoming.py", "📥 الوارد"),
-        ("pages/4_Outgoing.py", "📤 الصادر"),
-        ("pages/5_Reports.py", "📈 التقارير"),
-        ("pages/6_Settings.py", "⚙️ الإعدادات"),
-    ]
-    
-    for page_path, label in pages_list:
-        full_path = BASE_DIR / page_path
-        if full_path.exists():
-            if label == "⚙️ الإعدادات" and user["role"] != "مدير":
-                continue
-            try:
-                st.page_link(page_path, label=label, use_container_width=True)
-            except Exception:
-                # إذا فشل الرابط، نستخدم رابط نصي بديل
-                st.markdown(f"[{label}](/{page_path.replace('.py', '')})")
-    
     st.markdown("---")
     if st.button("🚪 تسجيل الخروج", use_container_width=True):
         st.session_state["user"] = None
         st.rerun()
+    st.markdown("---")
 
-# ============ الصفحة الرئيسية ============
-st.markdown("""
-<div class="main-header">
-    <h1>📦 مرحباً بك في نظام إدارة المخازن</h1>
-    <p>نظام متكامل لإدارة الوارد والصادر والرصيد</p>
-</div>
-""", unsafe_allow_html=True)
+# ============ تعريف الصفحات بالعربية ============
+pages = [
+    st.Page("pages/1_Dashboard.py", title="لوحة التحكم", icon="📊", default=True),
+    st.Page("pages/2_Items.py", title="الأصناف", icon="📦"),
+    st.Page("pages/3_Incoming.py", title="الوارد", icon="📥"),
+    st.Page("pages/4_Outgoing.py", title="الصادر", icon="📤"),
+    st.Page("pages/5_Reports.py", title="التقارير", icon="📈"),
+]
 
-items_df = read_sheet("items")
-if not items_df.empty:
-    st.metric("📦 عدد الأصناف المسجلة", len(items_df))
-else:
-    st.info("🚀 ابدأ بإضافة أصنافك من صفحة الأصناف في القائمة الجانبية")
+if user["role"] == "مدير":
+    pages.append(st.Page("pages/6_Settings.py", title="الإعدادات", icon="⚙️"))
 
-st.markdown("### 🎯 اختر العملية من القائمة الجانبية")
-st.info("""
-- **📦 الأصناف**: إضافة وتعديل بيانات الأصناف
-- **📥 الوارد**: تسجيل توريدات جديدة
-- **📤 الصادر**: تسجيل عمليات الصرف
-- **📈 التقارير**: عرض الرصيد والتقارير التفصيلية
-- **⚙️ الإعدادات**: إدارة المستخدمين والمخازن (للمدير فقط)
-""")
+# تشغيل الصفحة المختارة
+pg = st.navigation(pages)
+pg.run()
