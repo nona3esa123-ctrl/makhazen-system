@@ -1,8 +1,10 @@
 import streamlit as st
 from datetime import datetime
+from utils.ui import setup_page
 from utils.auth import login_required
 from utils.sheets import read_sheet, append_row, generate_id
 
+setup_page("الوارد", "📥")
 login_required(role=["مدير", "أمين مخزن"])
 st.title("📥 تسجيل وارد جديد")
 
@@ -11,16 +13,17 @@ warehouses_df = read_sheet("warehouses")
 suppliers_df = read_sheet("suppliers")
 
 if items_df.empty:
-    st.warning("⚠️ أضف أصنافاً أولاً")
+    st.warning("⚠️ أضف أصنافاً أولاً من صفحة الأصناف")
     st.stop()
 
 with st.form("incoming_form"):
     col1, col2 = st.columns(2)
+    
     item_options = (items_df["كود الصنف"].astype(str) + " - " + items_df["اسم الصنف"].astype(str)).tolist()
     item = col1.selectbox("الصنف *", item_options)
     qty = col1.number_input("الكمية *", min_value=0.01, step=1.0)
     
-    warehouse_opts = warehouses_df["اسم المخزن"].tolist() if not warehouses_df.empty else ["افتراضي"]
+    warehouse_opts = warehouses_df["اسم المخزن"].tolist() if not warehouses_df.empty else ["المخزن الرئيسي"]
     warehouse = col2.selectbox("المخزن *", warehouse_opts)
     
     supplier_opts = suppliers_df["الاسم"].tolist() if not suppliers_df.empty else ["غير محدد"]
@@ -44,4 +47,13 @@ with st.form("incoming_form"):
             "الموظف": st.session_state["user"]["name"],
             "ملاحظات": notes
         })
-        st.success(f"✅ تم التسجيل بإذن رقم {receipt_no}")
+        st.success(f"✅ تم التسجيل بنجاح - رقم الإذن: {receipt_no}")
+        st.balloons()
+
+# عرض آخر 5 واردات
+st.markdown("---")
+st.markdown("### 📋 آخر 5 واردات")
+transactions_df = read_sheet("transactions")
+if not transactions_df.empty:
+    incoming = transactions_df[transactions_df["النوع"] == "وارد"].tail(5).iloc[::-1]
+    st.dataframe(incoming, use_container_width=True)
