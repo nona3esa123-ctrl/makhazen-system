@@ -1,4 +1,6 @@
 import streamlit as st
+import os
+from pathlib import Path
 from utils.auth import authenticate, init_session
 from utils.sheets import read_sheet
 
@@ -10,6 +12,9 @@ st.set_page_config(
 )
 
 init_session()
+
+# المسار الأساسي للمشروع
+BASE_DIR = Path(__file__).resolve().parent
 
 st.markdown("""
 <style>
@@ -33,6 +38,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ============ شاشة تسجيل الدخول ============
 if st.session_state["user"] is None:
     st.markdown("""
     <div class="main-header">
@@ -62,6 +68,7 @@ if st.session_state["user"] is None:
 
 user = st.session_state["user"]
 
+# ============ القائمة الجانبية ============
 with st.sidebar:
     st.markdown(f"""
     <div style="text-align:center; padding:15px; background:#f0f4f8; border-radius:10px;">
@@ -73,29 +80,33 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📋 القائمة الرئيسية")
     
-    # قائمة مخصصة بالعربية
-    st.page_link("app.py", label="🏠 الرئيسية", use_container_width=True)
-    st.page_link("pages/1_Dashboard.py", label="📊 لوحة التحكم", use_container_width=True)
-    st.page_link("pages/2_Items.py", label="📦 الأصناف", use_container_width=True)
-    st.page_link("pages/3_Incoming.py", label="📥 الوارد", use_container_width=True)
-    st.page_link("pages/4_Outgoing.py", label="📤 الصادر", use_container_width=True)
-    st.page_link("pages/5_Reports.py", label="📈 التقارير", use_container_width=True)
+    # الصفحات
+    pages_list = [
+        ("pages/1_Dashboard.py", "📊 لوحة التحكم"),
+        ("pages/2_Items.py", "📦 الأصناف"),
+        ("pages/3_Incoming.py", "📥 الوارد"),
+        ("pages/4_Outgoing.py", "📤 الصادر"),
+        ("pages/5_Reports.py", "📈 التقارير"),
+        ("pages/6_Settings.py", "⚙️ الإعدادات"),
+    ]
     
-    if user["role"] == "مدير":
-        st.page_link("pages/6_Settings.py", label="⚙️ الإعدادات", use_container_width=True)
+    for page_path, label in pages_list:
+        full_path = BASE_DIR / page_path
+        if full_path.exists():
+            if label == "⚙️ الإعدادات" and user["role"] != "مدير":
+                continue
+            try:
+                st.page_link(page_path, label=label, use_container_width=True)
+            except Exception:
+                # إذا فشل الرابط، نستخدم رابط نصي بديل
+                st.markdown(f"[{label}](/{page_path.replace('.py', '')})")
     
     st.markdown("---")
     if st.button("🚪 تسجيل الخروج", use_container_width=True):
         st.session_state["user"] = None
         st.rerun()
 
-# إخفاء القائمة التلقائية بالإنجليزية
-st.markdown("""
-<style>
-    [data-testid="stSidebarNav"] { display: none; }
-</style>
-""", unsafe_allow_html=True)
-
+# ============ الصفحة الرئيسية ============
 st.markdown("""
 <div class="main-header">
     <h1>📦 مرحباً بك في نظام إدارة المخازن</h1>
