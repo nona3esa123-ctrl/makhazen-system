@@ -1,33 +1,45 @@
 import streamlit as st
+import pandas as pd
 from utils.auth import login_required
-from utils.sheets import read_sheet, append_row
+from utils.sheets import read_sheet, append_row, update_row, delete_row, get_sheet
 
 login_required(role=["مدير", "أمين مخزن"])
 st.title("📦 إدارة الأصناف")
 
 items_df = read_sheet("items")
 
-tab1, tab2 = st.tabs(["📋 عرض", "➕ إضافة"])
+tab1, tab2, tab3 = st.tabs(["📋 عرض", "➕ إضافة", "✏️ تعديل / حذف"])
 
 with tab1:
     if items_df.empty:
         st.info("لا توجد أصناف بعد")
     else:
-        st.dataframe(items_df, use_container_width=True)
+        search = st.text_input("🔍 ابحث بالاسم أو الكود", key="search_items")
+        if search:
+            mask = items_df.astype(str).apply(
+                lambda r: r.str.contains(search, case=False, na=False).any(), axis=1
+            )
+            filtered = items_df[mask]
+        else:
+            filtered = items_df
+        st.dataframe(filtered, use_container_width=True)
+        st.caption(f"عدد الأصناف: {len(filtered)}")
 
 with tab2:
     with st.form("add_item"):
         col1, col2 = st.columns(2)
-        code = col1.text_input("كود الصنف *")
-        name = col2.text_input("اسم الصنف *")
+        code = col1.text_input("كود الصنف *", placeholder="مثال: ITM-001")
+        name = col2.text_input("اسم الصنف *", placeholder="مثال: ورق A4")
         unit = col1.selectbox("الوحدة", ["قطعة", "رزمة", "كرتونة", "كيلو", "لتر", "متر"])
-        category = col2.text_input("التصنيف")
-        reorder = col1.number_input("حد الطلب", min_value=0, value=10)
+        category = col2.text_input("التصنيف", placeholder="مثال: قرطاسية")
+        reorder = col1.number_input("حد الطلب", min_value=0, value=20)
         opening = col2.number_input("الرصيد الافتتاحي", min_value=0, value=0)
         
         if st.form_submit_button("➕ إضافة الصنف", use_container_width=True):
             if not code or not name:
                 st.error("⚠️ الكود والاسم مطلوبان")
+            elif not items_df.empty and code in items_df["كود الصنف"].astype(str).values:
+                st.error(f"⚠️ كود الصنف '{code}' موجود بالفعل! اختر كوداً آخر.")
             else:
                 append_row("items", {
                     "كود الصنف": code, "اسم الصنف": name, "الوحدة": unit,
@@ -35,3 +47,51 @@ with tab2:
                 })
                 st.success(f"✅ تم إضافة {name}")
                 st.rerun()
+
+with tab3:
+    if items_df.empty:
+        st.info("لا توجد أصناف لتعديلها")
+    else:
+        # قائمة اختيار الصنف
+        item_options = (items_df["كود الصنف"].astype(str) + " | " + items_df["اسم الصنف"].astype(str)).tolist()
+        selected = st.selectbox("اختر الصنف", item_options)
+        selected_code = selected.split(" | ")[0]
+        
+        current = items_df[items_df["كود الصنف"].astype(str) == selected_code].iloc[0]
+        
+        st.markdown("### ✏️ تعديل بيانات الصنف")
+        with st.form("edit_item"):
+            col1, col2 = st.columns(2)
+            new_name = col1.text_input("اسم الصنف", value=str(current["اسم الصنف"]))
+            new_unit = col2.selectbox(
+                "الوحدة", 
+                ["قطعة", "رزمة", "كرتونة", "كيلو", "لتر", "متر"],
+                index=["قطعة", "رزمة", "كرتونة", "كيلو", "لتر", "متر"].index(current["الوحدة"]) if current["الوحدة"] in ["قطعة", "رزمة", "كرتونة", "كيلو", "لتر", "متر"] else 0
+            )
+            new_cat = col1.text_input("التصنيف", value=str(current.get("التصنيف", "")))
+            new_reorder = col2.number_input("حد الطلب", min_value=0, value=int(current["حد الطلب"]))
+            
+            if st.form_submit_button("💾 حفظ التعديلات", use_container_width=True):
+                # البحث عن رقم الصف الفعلي في Google Sheets (نضيف 1 للهيدر)
+                row_idx = items_df[items_df["كود الصنف"].astype(str) == selected_code].index[0] + 2
+                update_row("items", row_idx, {
+                    "كود الصنف": selected_code,
+                    "اسم الصنف": new_name,
+                    "الوحدة": new_unit,
+                    "التصنيف": new_cat,
+                    "حد الطلب": new_reorder,
+                    "الرصيد الافتتاحي": current["الرصيد الافتتاحي"]
+                })
+                st.success("✅ تم الحفظ")
+                st.rerun()
+        
+        st.markdown("---")
+        st.markdown("### 🗑️ حذف الصنف")
+        st.warning(f"⚠️ أنت على وشك حذف الصنف: **{selected}** — لا يمكن التراجع!")
+        
+        confirm = st.checkbox("نعم، أريد حذف هذا الصنف نهائياً")
+        if st.button("🗑️ حذف الصنف", type="primary", disabled=not confirm):
+            row_idx = items_df[items_df["كود الصنف"].astype(str) == selected_code].index[0] + 2
+            delete_row("items", row_idx)
+            st.success(f"✅ تم حذف {selected}")
+            st.rerun()
