@@ -1,4 +1,5 @@
 import streamlit as st
+from pathlib import Path
 from utils.auth import authenticate, init_session
 
 st.set_page_config(
@@ -9,6 +10,10 @@ st.set_page_config(
 )
 
 init_session()
+
+# المسار الأساسي للمشروع (مطلق)
+BASE_DIR = Path(__file__).resolve().parent
+PAGES_DIR = BASE_DIR / "pages"
 
 st.markdown("""
 <style>
@@ -57,7 +62,6 @@ if st.session_state.get("user") is None:
         st.info("💡 استخدم بيانات المدير المسجلة في ملف المستخدمين.")
     st.stop()
 
-# ============ بيانات المستخدم ============
 user = st.session_state["user"]
 
 # معلومات المستخدم في الشريط الجانبي
@@ -74,18 +78,29 @@ with st.sidebar:
         st.rerun()
     st.markdown("---")
 
-# ============ تعريف الصفحات بالعربية ============
-pages = [
-    st.Page("pages/1_Dashboard.py", title="لوحة التحكم", icon="📊", default=True),
-    st.Page("pages/2_Items.py", title="الأصناف", icon="📦"),
-    st.Page("pages/3_Incoming.py", title="الوارد", icon="📥"),
-    st.Page("pages/4_Outgoing.py", title="الصادر", icon="📤"),
-    st.Page("pages/5_Reports.py", title="التقارير", icon="📈"),
+# ============ تعريف الصفحات (بمسار مطلق) ============
+pages_config = [
+    ("1_Dashboard.py", "لوحة التحكم", "📊", True),
+    ("2_Items.py", "الأصناف", "📦", False),
+    ("3_Incoming.py", "الوارد", "📥", False),
+    ("4_Outgoing.py", "الصادر", "📤", False),
+    ("5_Reports.py", "التقارير", "📈", False),
+    ("6_Settings.py", "الإعدادات", "⚙️", False),
 ]
 
-if user["role"] == "مدير":
-    pages.append(st.Page("pages/6_Settings.py", title="الإعدادات", icon="⚙️"))
+pages = []
+for filename, title, icon, is_default in pages_config:
+    file_path = PAGES_DIR / filename
+    if file_path.exists():
+        if title == "الإعدادات" and user["role"] != "مدير":
+            continue
+        pages.append(st.Page(str(file_path), title=title, icon=icon, default=is_default))
+    else:
+        st.sidebar.warning(f"⚠️ ملف مفقود: {filename}")
 
-# تشغيل الصفحة المختارة
+if not pages:
+    st.error("❌ لم يتم العثور على أي صفحات!")
+    st.stop()
+
 pg = st.navigation(pages)
 pg.run()
