@@ -1,5 +1,4 @@
 import streamlit as st
-from pathlib import Path
 from utils.auth import authenticate, init_session
 
 st.set_page_config(
@@ -10,10 +9,6 @@ st.set_page_config(
 )
 
 init_session()
-
-# المسار الأساسي للمشروع (مطلق)
-BASE_DIR = Path(__file__).resolve().parent
-PAGES_DIR = BASE_DIR / "pages"
 
 st.markdown("""
 <style>
@@ -73,34 +68,33 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
+    
+    # أزرار التنقل
+    st.markdown("### 📋 القائمة الرئيسية")
+    
+    if st.button("📊 لوحة التحكم", use_container_width=True):
+        st.switch_page("pages/1_Dashboard.py")
+    if st.button("📦 الأصناف", use_container_width=True):
+        st.switch_page("pages/2_Items.py")
+    if st.button("📥 الوارد", use_container_width=True):
+        st.switch_page("pages/3_Incoming.py")
+    if st.button("📤 الصادر", use_container_width=True):
+        st.switch_page("pages/4_Outgoing.py")
+    if st.button("📈 التقارير", use_container_width=True):
+        st.switch_page("pages/5_Reports.py")
+    if user["role"] == "مدير":
+        if st.button("⚙️ الإعدادات", use_container_width=True):
+            st.switch_page("pages/6_Settings.py")
+    
+    st.markdown("---")
     if st.button("🚪 تسجيل الخروج", use_container_width=True):
         st.session_state["user"] = None
         st.rerun()
-    st.markdown("---")
 
-# ============ تعريف الصفحات (بمسار مطلق) ============
-pages_config = [
-    ("1_Dashboard.py", "لوحة التحكم", "📊", True),
-    ("2_Items.py", "الأصناف", "📦", False),
-    ("3_Incoming.py", "الوارد", "📥", False),
-    ("4_Outgoing.py", "الصادر", "📤", False),
-    ("5_Reports.py", "التقارير", "📈", False),
-    ("6_Settings.py", "الإعدادات", "⚙️", False),
-]
-
-pages = []
-for filename, title, icon, is_default in pages_config:
-    file_path = PAGES_DIR / filename
-    if file_path.exists():
-        if title == "الإعدادات" and user["role"] != "مدير":
-            continue
-        pages.append(st.Page(str(file_path), title=title, icon=icon, default=is_default))
-    else:
-        st.sidebar.warning(f"⚠️ ملف مفقود: {filename}")
-
-if not pages:
-    st.error("❌ لم يتم العثور على أي صفحات!")
-    st.stop()
-
-pg = st.navigation(pages)
-pg.run()
+# ============ الصفحة الرئيسية ============
+st.markdown("""
+<div class="main-header">
+    <h1>📦 مرحباً بك في نظام إدارة المخازن</h1>
+    <p>نظام متكامل لإدارة الوارد والصادر والرصيد</p>
+</div>
+""", unsafe_allow_html=True)
