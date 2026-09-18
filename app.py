@@ -1,4 +1,5 @@
 import streamlit as st
+from pathlib import Path
 from utils.auth import authenticate, init_session
 from utils.ui import inject_css, render_sidebar
 
@@ -11,6 +12,10 @@ st.set_page_config(
 
 init_session()
 inject_css()
+
+# المسار الأساسي
+BASE_DIR = Path(__file__).resolve().parent
+PAGES_DIR = BASE_DIR / "pages"
 
 # ============ تسجيل الدخول ============
 if st.session_state.get("user") is None:
@@ -39,6 +44,7 @@ if st.session_state.get("user") is None:
     st.stop()
 
 # ============ المستخدم مسجل الدخول ============
+user = st.session_state["user"]
 render_sidebar()
 
 st.markdown("""
@@ -51,8 +57,9 @@ st.markdown("""
 st.info("""
 - **📊 لوحة التحكم**: نظرة عامة على المخزون
 - **📦 الأصناف**: إدارة الأصناف
-- **📥 الوارد**: تسجيل توريدات
-- **📤 الصادر**: تسجيل صرفيات
-- **📈 التقارير**: عرض الرصيد والتقارير
-- **⚙️ الإعدادات**: إدارة المستخدمين والمخازن
+- **📥 الوارد**: تسجيل التوريدات
+- **📤 الصادر**: تسجيل الصرفيات
+- **📈 التقارير**: عرض الرصيد والتقارير التفصيلية
+- **🗂️ إدارة الحركات** (للمدير): تعديل وحذف أي حركة
+- **⚙️ الإعدادات** (للمدير): إدارة المستخدمين والمخازن
 """)
