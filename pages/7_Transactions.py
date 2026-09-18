@@ -9,6 +9,20 @@ login_required(role=["مدير"])
 st.title("🗂️ إدارة الحركات")
 st.caption("👑 هذه الصفحة متاحة للمدير فقط - تعديل وحذف الوارد والصادر")
 
+
+def to_float(value, default=0.0):
+    """تحويل آمن للأرقام - يتعامل مع الفاصلة والنقطة"""
+    if value is None:
+        return default
+    try:
+        if isinstance(value, (int, float)):
+            return float(value)
+        s = str(value).strip().replace(",", ".")
+        return float(s) if s else default
+    except (ValueError, TypeError):
+        return default
+
+
 transactions_df = read_sheet("transactions")
 
 if transactions_df.empty:
@@ -40,7 +54,7 @@ if filtered.empty:
 st.markdown("---")
 st.markdown("### ✏️ تعديل أو حذف حركة")
 
-# قائمة اختيار الحركة (نستخدم رقم الإذن + النوع + التاريخ كمعرّف)
+# قائمة اختيار الحركة
 filtered_reset = filtered.reset_index(drop=True)
 trans_options = [
     f"{row['رقم الإذن']} | {row['النوع']} | {row['كود الصنف']} | {row['التاريخ']}"
@@ -56,9 +70,9 @@ if original_matches.empty:
     st.error("⚠️ لم يتم العثور على الحركة")
     st.stop()
 
-# إذا كان الإذن يحتوي عدة أصناف (رقم الإذن نفسه)، نخلي المدير يختار السطر المحدد
+# إذا كان الإذن يحتوي عدة أصناف
 if len(original_matches) > 1:
-    st.info(f"ℹ️ رقم الإذن {selected_receipt} يحتوي على {len(original_matches)} أصناف. اختر السطر المحدد للتعديل.")
+    st.info(f"ℹ️ رقم الإذن {selected_receipt} يحتوي على {len(original_matches)} أصناف. اختر السطر المحدد.")
     row_labels = [
         f"{row['كود الصنف']} | كمية: {row['الكمية']}"
         for _, row in original_matches.iterrows()
@@ -66,7 +80,6 @@ if len(original_matches) > 1:
     chosen_row_label = st.selectbox("اختر السطر", row_labels, key="select_row_in_receipt")
     chosen_idx_label = row_labels.index(chosen_row_label)
     current = original_matches.iloc[chosen_idx_label]
-    # نجد رقم الصف الحقيقي في الـ DataFrame الأصلي
     real_idx = original_matches.index[chosen_idx_label]
 else:
     current = original_matches.iloc[0]
@@ -87,16 +100,23 @@ info_col2.write(f"**ملاحظات:** {current.get('ملاحظات', '')}")
 
 st.markdown("---")
 
-# فورم التعديل
+# فورم التعديل - مع تحويل آمن
 st.markdown("### 💾 تعديل الحركة")
+current_qty = to_float(current["الكمية"], 1.0)
+
 with st.form("edit_trans"):
     col1, col2 = st.columns(2)
-    new_qty = col1.number_input("الكمية", min_value=0.01, value=float(current["الكمية"]), step=1.0)
+    new_qty = col1.number_input(
+        "الكمية",
+        min_value=0.01,
+        value=current_qty,
+        step=1.0,
+        format="%.2f"
+    )
     new_entity = col2.text_input("المورد/الجهة", value=str(current.get("المورد/الجهة", "")))
     new_notes = st.text_area("ملاحظات", value=str(current.get("ملاحظات", "")), height=80)
     
     if st.form_submit_button("💾 حفظ التعديلات", use_container_width=True):
-        # رقم الصف الفعلي = الفهرس في transactions_df + 2 (لأن الصف 1 فيه العناوين)
         real_row_num = transactions_df.index.get_loc(real_idx) + 2
         
         updated_data = current.to_dict()
