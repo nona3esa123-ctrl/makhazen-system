@@ -71,9 +71,30 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     st.markdown("---")
+    st.markdown("### 📋 القائمة الرئيسية")
+    
+    # قائمة مخصصة بالعربية
+    st.page_link("app.py", label="🏠 الرئيسية", use_container_width=True)
+    st.page_link("pages/1_Dashboard.py", label="📊 لوحة التحكم", use_container_width=True)
+    st.page_link("pages/2_Items.py", label="📦 الأصناف", use_container_width=True)
+    st.page_link("pages/3_Incoming.py", label="📥 الوارد", use_container_width=True)
+    st.page_link("pages/4_Outgoing.py", label="📤 الصادر", use_container_width=True)
+    st.page_link("pages/5_Reports.py", label="📈 التقارير", use_container_width=True)
+    
+    if user["role"] == "مدير":
+        st.page_link("pages/6_Settings.py", label="⚙️ الإعدادات", use_container_width=True)
+    
+    st.markdown("---")
     if st.button("🚪 تسجيل الخروج", use_container_width=True):
         st.session_state["user"] = None
         st.rerun()
+
+# إخفاء القائمة التلقائية بالإنجليزية
+st.markdown("""
+<style>
+    [data-testid="stSidebarNav"] { display: none; }
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown("""
 <div class="main-header">
