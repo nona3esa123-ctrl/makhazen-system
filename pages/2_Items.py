@@ -1,8 +1,9 @@
 import streamlit as st
-import pandas as pd
+from utils.ui import setup_page
 from utils.auth import login_required
-from utils.sheets import read_sheet, append_row, update_row, delete_row, get_sheet
+from utils.sheets import read_sheet, append_row, update_row, delete_row
 
+setup_page("الأصناف", "📦")
 login_required(role=["مدير", "أمين مخزن"])
 st.title("📦 إدارة الأصناف")
 
@@ -39,7 +40,7 @@ with tab2:
             if not code or not name:
                 st.error("⚠️ الكود والاسم مطلوبان")
             elif not items_df.empty and code in items_df["كود الصنف"].astype(str).values:
-                st.error(f"⚠️ كود الصنف '{code}' موجود بالفعل! اختر كوداً آخر.")
+                st.error(f"⚠️ كود الصنف '{code}' موجود بالفعل!")
             else:
                 append_row("items", {
                     "كود الصنف": code, "اسم الصنف": name, "الوحدة": unit,
@@ -52,27 +53,22 @@ with tab3:
     if items_df.empty:
         st.info("لا توجد أصناف لتعديلها")
     else:
-        # قائمة اختيار الصنف
         item_options = (items_df["كود الصنف"].astype(str) + " | " + items_df["اسم الصنف"].astype(str)).tolist()
-        selected = st.selectbox("اختر الصنف", item_options)
+        selected = st.selectbox("اختر الصنف", item_options, key="edit_item_select")
         selected_code = selected.split(" | ")[0]
-        
         current = items_df[items_df["كود الصنف"].astype(str) == selected_code].iloc[0]
         
-        st.markdown("### ✏️ تعديل بيانات الصنف")
+        st.markdown("### ✏️ تعديل البيانات")
         with st.form("edit_item"):
             col1, col2 = st.columns(2)
             new_name = col1.text_input("اسم الصنف", value=str(current["اسم الصنف"]))
-            new_unit = col2.selectbox(
-                "الوحدة", 
-                ["قطعة", "رزمة", "كرتونة", "كيلو", "لتر", "متر"],
-                index=["قطعة", "رزمة", "كرتونة", "كيلو", "لتر", "متر"].index(current["الوحدة"]) if current["الوحدة"] in ["قطعة", "رزمة", "كرتونة", "كيلو", "لتر", "متر"] else 0
-            )
+            units = ["قطعة", "رزمة", "كرتونة", "كيلو", "لتر", "متر"]
+            curr_unit = str(current["الوحدة"])
+            new_unit = col2.selectbox("الوحدة", units, index=units.index(curr_unit) if curr_unit in units else 0)
             new_cat = col1.text_input("التصنيف", value=str(current.get("التصنيف", "")))
             new_reorder = col2.number_input("حد الطلب", min_value=0, value=int(current["حد الطلب"]))
             
             if st.form_submit_button("💾 حفظ التعديلات", use_container_width=True):
-                # البحث عن رقم الصف الفعلي في Google Sheets (نضيف 1 للهيدر)
                 row_idx = items_df[items_df["كود الصنف"].astype(str) == selected_code].index[0] + 2
                 update_row("items", row_idx, {
                     "كود الصنف": selected_code,
@@ -87,11 +83,10 @@ with tab3:
         
         st.markdown("---")
         st.markdown("### 🗑️ حذف الصنف")
-        st.warning(f"⚠️ أنت على وشك حذف الصنف: **{selected}** — لا يمكن التراجع!")
-        
-        confirm = st.checkbox("نعم، أريد حذف هذا الصنف نهائياً")
-        if st.button("🗑️ حذف الصنف", type="primary", disabled=not confirm):
+        st.warning(f"⚠️ أنت على وشك حذف: **{selected}**")
+        confirm = st.checkbox("نعم، أريد الحذف نهائياً", key="confirm_del_item")
+        if st.button("🗑️ حذف الصنف", type="primary", disabled=not confirm, key="btn_del_item"):
             row_idx = items_df[items_df["كود الصنف"].astype(str) == selected_code].index[0] + 2
             delete_row("items", row_idx)
-            st.success(f"✅ تم حذف {selected}")
+            st.success("✅ تم الحذف")
             st.rerun()
